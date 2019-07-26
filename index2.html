@@ -3,6 +3,9 @@
 <head>
 <meta charset="utf-8">
 <script src="http://d3js.org/d3.v3.min.js"></script>
+<script src="http://d3js.org/colorbrewer.v1.min.js"></script>
+<script src="http://d3js.org/topojson.v1.min.js"></script>
+
 <style type="text/css">
 
 /* On mouse hover, lighten state color */
@@ -89,29 +92,118 @@ var div = d3.select("body")
 
 
 // Load GeoJSON data and merge with states data
-d3.json("us-states.json", function(json) {
-		
-// Bind the data to the SVG and create one path per GeoJSON feature
-svg.selectAll("path")
-	.data(json.features)
-	.enter()
-	.append("path")
-	.attr("d", path)
-	.style("stroke", "#fff")
-	.style("stroke-width", "1")
-	.style("fill", function(d) {
+d3.json("world-50m.json", function(error, world) {
+    var color_scale = d3.scale.quantile().domain([1, 5]).range(colorbrewer.YlOrRd[5]);
+    
+    var filter = svg.append("defs")
+      .append("filter")
+    //   .attr("id", "drop-shadow")
+      .attr("height", "130%");
+    filter.append("feGaussianBlur")
+    .attr("in", "SourceAlpha")
+    .attr("stdDeviation", 5)
+    .attr("result", "blur");
 
-	// Get data value
-	var value = d.properties.visited;
+     filter.append("feOffset")
+        .attr("in", "blur")
+        .attr("dx", 5)
+        .attr("dy", 5)
+        .attr("result", "offsetBlur");
 
-	if (value) {
-	//If value exists…
-	return color(value);
-	} else {
-	//If value is undefined…
-	return "rgb(213,222,217)";
-	}
+    var feMerge = filter.append("feMerge");
+
+    feMerge.append("feMergeNode")
+        .attr("in", "offsetBlur")
+    feMerge.append("feMergeNode")
+        .attr("in", "SourceGraphic");
+
+    svg.insert("path", ".graticule")
+      .datum(topojson.feature(world, world.objects.land))
+      .attr("class", "land")
+      .attr("d", path)
+      .style("filter", "url(#drop-shadow)");
+
+    svg.insert("path", ".graticule")
+      .datum(topojson.mesh(world, world.objects.countries, function(a, b) { return a !== b; }))
+      .attr("class", "boundary")
+      .attr("d", path);
+    
+    // var dateText = svg.append("text")
+    //   .attr("id", "dataTitle")
+    //   .text("2013/11/"+track[0].day + " " + track[0].hour + ":00 class: " + track[0].class)
+    //   .attr("x", 70)
+    //   .attr("y", 20)
+    //   .attr("font-family", "sans-serif")
+    //   .attr("font-size", "20px")
+    //   .attr("fill", color_scale(track[0].class));
+
+
+    var pathLine = d3.svg.line()
+        .interpolate("cardinal")
+        .x(function(d) { return projection([d.lon, d.lat])[0]; })
+        .y(function(d) { return projection([d.lon, d.lat])[1]; });
+
+    
+
+    // var haiyanPath = svg.append("path")
+    // .attr("d",pathLine(track))
+    // .attr("fill","none")
+    // .attr("stroke", color_scale(track[0].class))
+    // .attr("stroke-width", 3)
+
+    // .style('stroke-dasharray', function(d) {
+    //   var l = d3.select(this).node().getTotalLength();
+    //   return l + 'px, ' + l + 'px';
+    // })
+    // .style('stroke-dashoffset', function(d) {
+    //   return d3.select(this).node().getTotalLength() + 'px';
+    //  });
+
+
+    // var haiyanPathEl = haiyanPath.node();
+    // var haiyanPathElLen = haiyanPathEl.getTotalLength();
+
+    // var pt = haiyanPathEl.getPointAtLength(0);
+
+    
+
+    // var icon = svg.append("path")
+    // .attr("d","m 20,-42 c -21.61358,0.19629 -34.308391,10.76213 -41.46346,18.0657 -7.155097,7.3036 -11.451337,17.59059 -11.599112,26.13277 0,14.45439 9.037059,26.79801 21.767213,31.69368 -14.965519,10.64929 -25.578236,6.78076 -37.671451,7.85549 C -4.429787,54.20699 14.03,37.263 23.12144,28.41572 32.2133,19.56854 34.6802,10.79063 34.82941,2.19847 c 0,-14.45219 -9.03405,-26.79679 -21.76113,-31.69364 14.90401,-10.54656 25.48889,-6.69889 37.55061,-7.77104 C 38.78869,-40.57565 29.11666,-41.95733 21.03853,-42 20.68954,-42.0105 20.34303,-42.0105 20,-42 z M 0.82306,-7.46851 c 4.72694,0 8.56186,4.27392 8.56186,9.54602 0,5.2725 -3.83492,9.54651 -8.56186,9.54651 -4.726719,0 -8.555958,-4.27401 -8.555958,-9.54651 0,-5.2721 3.829239,-9.54602 8.555958,-9.54602 z")
+    // .attr("transform", "translate(" + pt.x + "," + pt.y + "), scale("+(0.15*track[0].class)+")")
+    // .attr("fill", color_scale(track[0].class))
+    // .attr("class","icon");
+
+    // var i = 0;
+    // var animation = setInterval(function(){
+    //   pt = haiyanPathEl.getPointAtLength(haiyanPathElLen*i/track.length);
+    //   icon
+    //     .transition()
+    //     .ease("linear")
+    //     .duration(1000)
+    //     .attr("transform", "translate(" + pt.x + "," + pt.y + "), scale("+(0.15*track[i].class)+"), rotate("+(i*15)+")")
+    //     .attr("fill", color_scale(track[i].class));
+
+    //   haiyanPath
+    //     .transition()
+    //     .duration(1000)
+    //     .ease("linear")
+    //     .attr("stroke", color_scale(track[i].class))
+    //     .style('stroke-dashoffset', function(d) {
+    //       var stroke_offset = (haiyanPathElLen - haiyanPathElLen*i/track.length + 9);
+    //       return (haiyanPathElLen < stroke_offset) ? haiyanPathElLen : stroke_offset + 'px';
+    //     });
+
+    //   dateText
+    //     .text("2013/11/"+track[i].day + " " + track[i].hour + ":00 class: " + track[i].class)
+    //     .attr("fill", color_scale(track[i].class));
+    //   i = i + 1;
+    //   if (i==track.length)
+    //     clearInterval(animation)
+
+	// });
+
 });
+
 
 		 
 // Map the cities I have lived in!
@@ -128,8 +220,8 @@ svg.selectAll("circle")
 		return projection([d.Long, d.Lat])[1];
 	})
 	.attr("r", 4)
-		.style("fill", "rgb(217,91,67)")	
-		.style("opacity", 0.85)	
+	.style("fill", "rgb(217,91,67)")	
+	.style("opacity", 0.85)	
 
 	// Modification of custom tooltip code provided by Malcolm Maclean, "D3 Tips and Tricks" 
 	// http://www.d3noob.org/2013/01/adding-tooltips-to-d3js-graph.html
@@ -137,7 +229,7 @@ svg.selectAll("circle")
     	div.transition()        
       	   .duration(200)      
            .style("opacity", .9);      
-           div.text(d.Name)
+           div.text(d.Name2)
            .style("left", (d3.event.pageX) + "px")     
            .style("top", (d3.event.pageY - 28) + "px");    
 	})   
@@ -147,8 +239,12 @@ svg.selectAll("circle")
         div.transition()        
            .duration(500)      
            .style("opacity", 0);   
+    })
+    // click on line 
+    .on("mouseclick", function(d){
+
     });
-});  
+
         
 // Modified Legend Code from Mike Bostock: http://bl.ocks.org/mbostock/3888852
 var legend = d3.select("body").append("svg")
@@ -172,7 +268,7 @@ var legend = d3.select("body").append("svg")
       	  .attr("y", 9)
       	  .attr("dy", ".35em")
       	  .text(function(d) { return d; });
-	});
+});
 
 </script>
 </body>
